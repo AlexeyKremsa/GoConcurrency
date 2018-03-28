@@ -36,25 +36,16 @@ func readURLs(statusChannel chan int, textChannel chan string) {
 	}
 }
 
-func addToScrapedText(textChannel chan string, processChannel chan bool) {
+func addToScrapedText(textChannel chan string) {
 	for {
 		select {
-		case pC := <-processChannel:
-			fmt.Println("Receive")
-			if pC == false {
-				fmt.Println("IN FALSE")
-				close(textChannel)
-				close(processChannel)
-				fmt.Println("closed both")
-				return
-			}
 		case tC := <-textChannel:
 			fullText += tC
 		}
 	}
 }
 
-func evaluateStatus(statusChannel chan int, textChannel chan string, processChannel chan bool) {
+func evaluateStatus(statusChannel chan int, textChannel chan string) {
 	for {
 		select {
 		case status := <-statusChannel:
@@ -69,7 +60,7 @@ func evaluateStatus(statusChannel chan int, textChannel chan string, processChan
 
 			if urlsProcessed == totalURLCount {
 				fmt.Println("Read all top-level URLs")
-				processChannel <- false
+				close(textChannel)
 				applicationStatus = false
 			}
 		}
@@ -79,7 +70,6 @@ func main() {
 	applicationStatus = true
 	statusChannel := make(chan int)
 	textChannel := make(chan string)
-	processChannel := make(chan bool)
 	totalURLCount = 0
 
 	urls = append(urls, "http://www.mastergoco.com/index1.html")
@@ -93,11 +83,11 @@ func main() {
 	urlsProcessed = 0
 	totalURLCount = len(urls)
 
-	go evaluateStatus(statusChannel, textChannel, processChannel)
+	go evaluateStatus(statusChannel, textChannel)
 
 	go readURLs(statusChannel, textChannel)
 
-	go addToScrapedText(textChannel, processChannel)
+	go addToScrapedText(textChannel)
 
 	for {
 		if applicationStatus == false {
